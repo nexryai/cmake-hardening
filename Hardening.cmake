@@ -1,4 +1,4 @@
-nclude(CheckCXXCompilerFlag)
+include(CheckCXXCompilerFlag)
 include(FetchContent)
 
 if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
