@@ -31,8 +31,8 @@ ExternalProject_Add(ffmpeg_minimal
         --enable-avcodec
         --enable-avformat
         --enable-avutil
-        --extra-cflags=${HARDENING_C_FLAGS}
-        --extra-ldflags=${HARDENING_LD_FLAGS}
+        --extra-cflags="${HARDENING_C_FLAGS_STR}"
+        --extra-ldflags="${HARDENING_LD_FLAGS_STR}"
     BUILD_BYPRODUCTS 
         ${FFMPEG_INSTALL_DIR}/lib/libavformat.a
         ${FFMPEG_INSTALL_DIR}/lib/libavcodec.a
