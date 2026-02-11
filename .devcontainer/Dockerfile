@@ -1,6 +1,6 @@
 FROM chimeralinux/chimera
 
-RUN apk update && apk add --no-cache \
+RUN apk update && apk upgrade --no-cache && apk add --no-cache \
     clang cmake libcxx libcxxabi libunwind \
     shadow curl \
     git
