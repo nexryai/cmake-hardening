@@ -5,4 +5,4 @@ RUN apk update && apk upgrade --no-cache && apk add --no-cache \
     shadow curl \
     git
 
-RUN adduser -D runner
+RUN useradd -m -d /home/runner runner
