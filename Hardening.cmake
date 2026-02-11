@@ -23,7 +23,7 @@ set(MI_BUILD_OBJECT ON CACHE BOOL "" FORCE)
 FetchContent_Declare(
     mimalloc
     GIT_REPOSITORY https://github.com/microsoft/mimalloc
-    GIT_TAG        master
+    GIT_TAG        main
 )
 FetchContent_MakeAvailable(mimalloc)
 
