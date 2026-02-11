@@ -8,6 +8,9 @@ endif()
 # These hardenings apply the following settings:
 # - Build binaries with static linking using musl
 # - Apply hardening to enhance memory security and integrity, such as stack protectors and CFI.
+# 
+# You can use CMakeFetchContent to enforce these rules.
+#
 
 # Using musl
 set(MUSL_TARGET "x86_64-linux-musl")
