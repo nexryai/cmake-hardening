@@ -8,7 +8,8 @@ endif()
 # These hardenings apply the following settings:
 # - Build binaries with static linking using musl
 # - Apply hardening to enhance memory security and integrity, such as stack protectors and CFI.
-# 
+# - Use mimalloc with MI_SECURE=4
+#
 # You can use CMakeFetchContent to enforce these rules.
 #
 
