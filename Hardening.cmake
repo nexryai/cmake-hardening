@@ -32,6 +32,38 @@ ExternalProject_Add(musl_build
     INSTALL_COMMAND make install
 )
 
+# Build libc++, libc++abi, and libunwind for musl
+set(LLVM_RUNTIMES_INSTALL_DIR "${CMAKE_BINARY_DIR}/llvm_runtimes_install")
+set(LLVM_PROJECT_SOURCE "${CMAKE_BINARY_DIR}/llvm_runtimes-prefix/src/llvm_runtimes")
+
+ExternalProject_Add(llvm_runtimes
+    URL "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/llvm-project-18.1.8.src.tar.xz"
+    SOURCE_SUBDIR "runtimes"
+    DEPENDS musl_build
+    # セミコロンを安全に渡すためのセパレータ設定
+    LIST_SEPARATOR | 
+    CMAKE_ARGS
+        "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+        "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY"
+        "-DCMAKE_INSTALL_PREFIX=${LLVM_RUNTIMES_INSTALL_DIR}"
+        "-DLLVM_ENABLE_RUNTIMES=libcxx|libcxxabi|libunwind"
+        "-DLIBCXX_CXX_ABI=libcxxabi"
+        "-DLIBCXX_CXX_ABI_INCLUDE_PATHS=<SOURCE_DIR>/libcxxabi/include"
+        "-DLIBCXX_HAS_MUSL_LIBC=ON"
+        "-DLIBCXX_ENABLE_STATIC=ON"
+        "-DLIBCXX_ENABLE_SHARED=OFF"
+        "-DLIBCXXABI_USE_LLVM_UNWIND=ON"
+        "-DLIBCXXABI_ENABLE_STATIC=ON"
+        "-DLIBCXXABI_ENABLE_SHARED=OFF"
+        # libc++の中にlibc++abiを統合（静的リンクの簡略化）
+        "-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON"
+        "-DLIBUNWIND_ENABLE_STATIC=ON"
+        "-DLIBUNWIND_ENABLE_SHARED=OFF"
+        "-DCMAKE_C_FLAGS=--target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
+        "-DCMAKE_CXX_FLAGS=--target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
+)
+
 # Global Hardening Constants
 set(HARDENING_COMMON_FLAGS
     "--target=${MUSL_TARGET}"
@@ -61,6 +93,7 @@ set(HARDENING_LD_FLAGS
     "--unwindlib=libunwind"
     "-static"
     "-static-pie"
+    "-L${LLVM_RUNTIMES_INSTALL_DIR}/lib"
     "-L${MUSL_INSTALL_DIR}/lib"
     "-lc"
     "-lc++"
@@ -93,10 +126,13 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(mimalloc)
 
 function(setup_target_hardening TARGET)
-    add_dependencies(${TARGET} musl_build mimalloc-static)
+    add_dependencies(${TARGET} musl_build llvm_runtimes mimalloc-static)
     
     target_link_libraries(${TARGET} PRIVATE 
         mimalloc-static
+        "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++.a"
+        "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++abi.a"
+        "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libunwind.a"
     )
     
     set_target_properties(${TARGET} PROPERTIES 
