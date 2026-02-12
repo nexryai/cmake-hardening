@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.24)
 
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_AR "llvm-ar")
-set(CMAKE_RANLIB "llvm-ranlib")
+set(CMAKE_AR "llvm-ar-20")
+set(CMAKE_RANLIB "llvm-ranlib-20")
 
 project(HardenedFFmpegTest LANGUAGES C CXX)
 
