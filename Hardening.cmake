@@ -130,9 +130,9 @@ set(HARDENING_LD_FLAGS
     "-Wl,-z,relro"
     "-Wl,-z,now"
     "-Wl,-z,noexecstack"
-    "-Wl,--no-dynamic-linker"  # 追加
-    "-Wl,-pie"  # 追加
-    "-fPIE"  # コンパイルフラグにも必要
+    "-Wl,--no-dynamic-linker"
+    "-Wl,-pie"
+    "-fPIE"
 )
 
 add_compile_options("${HARDENING_C_FLAGS}")
@@ -165,10 +165,10 @@ function(setup_target_hardening TARGET)
     
     target_link_options(${TARGET} PRIVATE 
         ${HARDENING_LD_FLAGS}
-        "${MUSL_INSTALL_DIR}/lib/rcrt1.o"  # PIE用のCRT
+        "${MUSL_INSTALL_DIR}/lib/rcrt1.o"
     )
     
-    target_link_libraries(${TARGET} PRIVATE 
+    target_link_libraries(${TARGET} PRIVATE
         ssp_shim
         mimalloc-static
         ${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++.a

@@ -6,5 +6,6 @@ extern "C" {
 
 int main() {
     std::cout << "FFmpeg Version: " << av_version_info() << std::endl;
+    void* p = malloc(16);
     return 0;
 }
