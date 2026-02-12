@@ -5,11 +5,11 @@
     },
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
     "workspaceFolder": "/workspace",
-    "remoteUser": "runner",
+    "remoteUser": "ubuntu",
     "overrideCommand": true,
     "customizations": {
         "vscode": {
-            "extensions": []
+            "extensions": ["ms-vscode.cmake-tools"]
         }
     }
 }

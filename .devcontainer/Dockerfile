@@ -1,8 +1,4 @@
-FROM chimeralinux/chimera
+FROM ubuntu:rolling
 
-RUN apk update && apk upgrade --no-cache && apk add --no-cache \
-    clang cmake libcxx libcxxabi libunwind gcompat \
-    shadow curl \
-    git
-
-RUN useradd -m -d /home/runner runner
+RUN apt-get update && \
+    apt-get install -y git xz-utils curl clang-20 clangd-20 lld-20 llvm-20-linker-tools
