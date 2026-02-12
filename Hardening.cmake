@@ -25,7 +25,9 @@ ExternalProject_Add(musl_build
         "CC=${CMAKE_C_COMPILER} --target=${MUSL_TARGET}"
         "AR=${CMAKE_AR}"
         "RANLIB=${CMAKE_RANLIB}"
-        "CFLAGS=-fstack-protector-strong -flto=thin -fsplit-lto-unit"
+        # If you compile musl as static-pie and enable LTO, the following error occurs during the final link process:
+        # ld.lld: error: undefined hidden symbol: __dls2
+        "CFLAGS=-fPIC -fstack-protector-strong"
         --prefix=${MUSL_INSTALL_DIR}
         --disable-shared
     BUILD_COMMAND make -j$(nproc)
@@ -77,6 +79,7 @@ ExternalProject_Add(llvm_runtimes
     CMAKE_ARGS
         "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
         "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
         "-DLIBCXX_ENABLE_TESTS=OFF"
         "-DLLVM_INCLUDE_TESTS=OFF"
         "-DLLVM_INCLUDE_BENCHMARKS=OFF"
@@ -100,8 +103,8 @@ ExternalProject_Add(llvm_runtimes
         "-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON"
         "-DLIBUNWIND_ENABLE_STATIC=ON"
         "-DLIBUNWIND_ENABLE_SHARED=OFF"
-        "-DCMAKE_C_FLAGS=${HARDENING_C_FLAGS_STR} -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
-        "-DCMAKE_CXX_FLAGS=${HARDENING_CXX_FLAGS_STR} -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
+        "-DCMAKE_C_FLAGS=${HARDENING_C_FLAGS_STR} -fPIC -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
+        "-DCMAKE_CXX_FLAGS=${HARDENING_CXX_FLAGS_STR} -fPIC -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
 )
 
 set(HARDENING_LD_FLAGS
@@ -112,7 +115,8 @@ set(HARDENING_LD_FLAGS
     "--rtlib=compiler-rt"
     "--unwindlib=libunwind"
     "-static"
-    # "-static-pie"
+    "-static-pie"
+    "-B${MUSL_INSTALL_DIR}/lib"
     "-L${LLVM_RUNTIMES_INSTALL_DIR}/lib"
     "-L${MUSL_INSTALL_DIR}/lib"
     # DO NOT USE THIS
@@ -126,6 +130,9 @@ set(HARDENING_LD_FLAGS
     "-Wl,-z,relro"
     "-Wl,-z,now"
     "-Wl,-z,noexecstack"
+    "-Wl,--no-dynamic-linker"  # 追加
+    "-Wl,-pie"  # 追加
+    "-fPIE"  # コンパイルフラグにも必要
 )
 
 add_compile_options("${HARDENING_C_FLAGS}")
@@ -137,6 +144,7 @@ set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(MI_BUILD_STATIC ON CACHE BOOL "" FORCE)
 set(MI_BUILD_OBJECT OFF CACHE BOOL "" FORCE)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 FetchContent_Declare(
     mimalloc
@@ -155,7 +163,10 @@ function(setup_target_hardening TARGET)
         ${MUSL_INSTALL_DIR}/include
     )
     
-    target_link_options(${TARGET} PRIVATE ${HARDENING_LD_FLAGS})
+    target_link_options(${TARGET} PRIVATE 
+        ${HARDENING_LD_FLAGS}
+        "${MUSL_INSTALL_DIR}/lib/rcrt1.o"  # PIE用のCRT
+    )
     
     target_link_libraries(${TARGET} PRIVATE 
         ssp_shim
