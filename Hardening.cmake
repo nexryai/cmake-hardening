@@ -32,15 +32,6 @@ ExternalProject_Add(musl_build
     INSTALL_COMMAND make install
 )
 
-FetchContent_Declare(
-    fortify_headers
-    GIT_REPOSITORY https://github.com/jvoisin/fortify-headers.git
-    GIT_TAG        3.0.1
-)
-FetchContent_MakeAvailable(fortify_headers)
-
-set(FORTIFY_INCLUDE_DIR ${fortify_headers_SOURCE_DIR}/include)
-
 add_library(ssp_shim STATIC "${CMAKE_CURRENT_LIST_DIR}/ssp_shim.c")
 
 target_compile_options(ssp_shim PRIVATE ${HARDENING_C_FLAGS})
@@ -52,7 +43,6 @@ set(HARDENING_COMMON_FLAGS
     "-fsplit-lto-unit"
     "-fvisibility=hidden"
     "-fsanitize=cfi"
-    "-isystem ${FORTIFY_INCLUDE_DIR}"
     "-isystem ${MUSL_INSTALL_DIR}/include"
 )
 
@@ -72,18 +62,29 @@ set(HARDENING_CXX_FLAGS
     "-isystem ${LLVM_RUNTIMES_INSTALL_DIR}/include/c++/v1"
 )
 
+string(REPLACE ";" " " HARDENING_C_FLAGS_STR "${HARDENING_C_FLAGS}")
+string(REPLACE ";" " " HARDENING_LD_FLAGS_STR "${HARDENING_LD_FLAGS}")
+
 # Build libc++, libc++abi, and libunwind for musl
 set(LLVM_RUNTIMES_INSTALL_DIR "${CMAKE_BINARY_DIR}/llvm_runtimes_install")
 set(LLVM_PROJECT_SOURCE "${CMAKE_BINARY_DIR}/llvm_runtimes-prefix/src/llvm_runtimes")
 
 ExternalProject_Add(llvm_runtimes
-    URL "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/llvm-project-18.1.8.src.tar.xz"
+    URL "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/llvm-project-20.1.8.src.tar.xz"
     SOURCE_SUBDIR "runtimes"
     DEPENDS musl_build
     LIST_SEPARATOR | 
     CMAKE_ARGS
         "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
         "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        "-DLIBCXX_ENABLE_TESTS=OFF"
+        "-DLLVM_INCLUDE_TESTS=OFF"
+        "-DLLVM_INCLUDE_BENCHMARKS=OFF"
+        "-DLIBCXX_ENABLE_TESTS=OFF"
+        "-DLIBCXXABI_ENABLE_TESTS=OFF"
+        "-DLIBUNWIND_ENABLE_TESTS=OFF"
+        "-DCMAKE_DISABLE_FIND_PACKAGE_LLVM=ON"
+        "-DCMAKE_DISABLE_FIND_PACKAGE_Clang=ON"
         "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY"
         "-DCMAKE_INSTALL_PREFIX=${LLVM_RUNTIMES_INSTALL_DIR}"
         "-DLLVM_ENABLE_LTO=Thin"
@@ -99,8 +100,8 @@ ExternalProject_Add(llvm_runtimes
         "-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON"
         "-DLIBUNWIND_ENABLE_STATIC=ON"
         "-DLIBUNWIND_ENABLE_SHARED=OFF"
-        "-DCMAKE_C_FLAGS=-fstack-protector-strong -flto=thin -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
-        "-DCMAKE_CXX_FLAGS=-fstack-protector-strong -flto=thin -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
+        "-DCMAKE_C_FLAGS=${HARDENING_C_FLAGS_STR} -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
+        "-DCMAKE_CXX_FLAGS=${HARDENING_CXX_FLAGS_STR} -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
 )
 
 set(HARDENING_LD_FLAGS
@@ -111,7 +112,7 @@ set(HARDENING_LD_FLAGS
     "--rtlib=compiler-rt"
     "--unwindlib=libunwind"
     "-static"
-    "-static-pie"
+    # "-static-pie"
     "-L${LLVM_RUNTIMES_INSTALL_DIR}/lib"
     "-L${MUSL_INSTALL_DIR}/lib"
     # DO NOT USE THIS
@@ -129,9 +130,6 @@ set(HARDENING_LD_FLAGS
 
 add_compile_options("${HARDENING_C_FLAGS}")
 add_link_options("${HARDENING_LD_FLAGS}")
-
-string(REPLACE ";" " " HARDENING_C_FLAGS_STR "${HARDENING_C_FLAGS}")
-string(REPLACE ";" " " HARDENING_LD_FLAGS_STR "${HARDENING_LD_FLAGS}")
 
 # Mimalloc Setup
 set(MI_SECURE "4" CACHE STRING "" FORCE)
@@ -155,7 +153,6 @@ function(setup_target_hardening TARGET)
     target_include_directories(${TARGET} SYSTEM PRIVATE
         ${LLVM_RUNTIMES_INSTALL_DIR}/include/c++/v1
         ${MUSL_INSTALL_DIR}/include
-        ${FORTIFY_INCLUDE_DIR}
     )
     
     target_link_options(${TARGET} PRIVATE ${HARDENING_LD_FLAGS})
