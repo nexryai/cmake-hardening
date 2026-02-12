@@ -82,7 +82,24 @@ set(HARDENING_C_FLAGS
     "-Werror=format-security"
     "-D_FORTIFY_SOURCE=3"
 )
-set(HARDENING_CXX_FLAGS "${HARDENING_C_FLAGS}")
+
+set(HARDENING_CXX_FLAGS
+    "${HARDENING_C_FLAGS}"
+    "-nostdinc++"
+    "-isystem ${LLVM_RUNTIMES_INSTALL_DIR}/include/c++/v1"
+)
+
+set(HARDENING_LD_FLAGS_SUCKS
+    "--target=${MUSL_TARGET}"
+    "-fuse-ld=lld"
+    "-static"
+    "-static-pie"
+    "-nostdlib++"
+    "-Wl,-z,relro"
+    "-Wl,-z,now"
+    "-Wl,-z,noexecstack"
+    "-Wl,--allow-multiple-definition"
+)
 
 set(HARDENING_LD_FLAGS
     "--target=${MUSL_TARGET}"
@@ -95,10 +112,13 @@ set(HARDENING_LD_FLAGS
     "-static-pie"
     "-L${LLVM_RUNTIMES_INSTALL_DIR}/lib"
     "-L${MUSL_INSTALL_DIR}/lib"
-    "-lc"
-    "-lc++"
-    "-lc++abi"
-    "-lunwind"
+    # DO NOT USE THIS
+    # -lcを追加するとmuslが使われない
+    # 
+    # "-lc"
+    # "-lc++"
+    # "-lc++abi"
+    # "-lunwind"
     "-Wl,--allow-multiple-definition" # Resolve conflict between musl and mimalloc
     "-Wl,-z,relro"
     "-Wl,-z,now"
@@ -133,6 +153,7 @@ function(setup_target_hardening TARGET)
         "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++.a"
         "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++abi.a"
         "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libunwind.a"
+        "${MUSL_INSTALL_DIR}/lib/libc.a"
     )
     
     set_target_properties(${TARGET} PROPERTIES 
