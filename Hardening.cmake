@@ -41,6 +41,10 @@ FetchContent_MakeAvailable(fortify_headers)
 
 set(FORTIFY_INCLUDE_DIR ${fortify_headers_SOURCE_DIR}/include)
 
+add_library(ssp_shim STATIC "${CMAKE_CURRENT_LIST_DIR}/ssp_shim.c")
+
+target_compile_options(ssp_shim PRIVATE ${HARDENING_C_FLAGS})
+
 # Global Hardening Constants
 set(HARDENING_COMMON_FLAGS
     "--target=${MUSL_TARGET}"
@@ -95,21 +99,8 @@ ExternalProject_Add(llvm_runtimes
         "-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON"
         "-DLIBUNWIND_ENABLE_STATIC=ON"
         "-DLIBUNWIND_ENABLE_SHARED=OFF"
-        "-DCMAKE_C_FLAGS=${HARDENING_C_FLAGS_STR} -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
-        "-DCMAKE_CXX_FLAGS=${HARDENING_CXX_FLAGS_STR} -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
-)
-
-# Linker configs
-set(HARDENING_LD_FLAGS_SUCKS
-    "--target=${MUSL_TARGET}"
-    "-fuse-ld=lld"
-    "-static"
-    "-static-pie"
-    "-nostdlib++"
-    "-Wl,-z,relro"
-    "-Wl,-z,now"
-    "-Wl,-z,noexecstack"
-    "-Wl,--allow-multiple-definition"
+        "-DCMAKE_C_FLAGS=-fstack-protector-strong -flto=thin -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
+        "-DCMAKE_CXX_FLAGS=-fstack-protector-strong -flto=thin -fsplit-lto-unit --target=${MUSL_TARGET} -isystem ${MUSL_INSTALL_DIR}/include"
 )
 
 set(HARDENING_LD_FLAGS
@@ -157,15 +148,20 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(mimalloc)
 
 function(setup_target_hardening TARGET)
-    add_dependencies(${TARGET} musl_build llvm_runtimes mimalloc-static)
+    add_dependencies(${TARGET} musl_build llvm_runtimes mimalloc-static ssp_shim)
+    
+    target_compile_options(${TARGET} PRIVATE ${HARDENING_CXX_FLAGS})
     
     target_include_directories(${TARGET} SYSTEM PRIVATE
-        ${FORTIFY_INCLUDE_DIR}    
         ${LLVM_RUNTIMES_INSTALL_DIR}/include/c++/v1
         ${MUSL_INSTALL_DIR}/include
+        ${FORTIFY_INCLUDE_DIR}
     )
     
+    target_link_options(${TARGET} PRIVATE ${HARDENING_LD_FLAGS})
+    
     target_link_libraries(${TARGET} PRIVATE 
+        ssp_shim
         mimalloc-static
         ${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++.a
         ${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++abi.a
