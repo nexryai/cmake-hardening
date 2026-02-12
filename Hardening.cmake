@@ -159,13 +159,18 @@ FetchContent_MakeAvailable(mimalloc)
 function(setup_target_hardening TARGET)
     add_dependencies(${TARGET} musl_build llvm_runtimes mimalloc-static)
     
+    target_include_directories(${TARGET} SYSTEM PRIVATE
+        ${FORTIFY_INCLUDE_DIR}    
+        ${LLVM_RUNTIMES_INSTALL_DIR}/include/c++/v1
+        ${MUSL_INSTALL_DIR}/include
+    )
+    
     target_link_libraries(${TARGET} PRIVATE 
         mimalloc-static
-        "${FORTIFY_INCLUDE_DIR}"
-        "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++.a"
-        "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++abi.a"
-        "${LLVM_RUNTIMES_INSTALL_DIR}/lib/libunwind.a"
-        "${MUSL_INSTALL_DIR}/lib/libc.a"
+        ${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++.a
+        ${LLVM_RUNTIMES_INSTALL_DIR}/lib/libc++abi.a
+        ${LLVM_RUNTIMES_INSTALL_DIR}/lib/libunwind.a
+        ${MUSL_INSTALL_DIR}/lib/libc.a
     )
     
     set_target_properties(${TARGET} PROPERTIES 
